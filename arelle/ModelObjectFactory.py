@@ -87,7 +87,7 @@ LINK_LOCALNAME_TO_MODEL_CLASS = {
 
 class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
     def __init__(self, modelXbrl: ModelXbrl, fallback: etree.ElementClassLookup | None = None) -> None:
-        super(KnownNamespacesModelObjectClassLookup, self).__init__(fallback)
+        super().__init__(fallback)
         self.modelXbrl = modelXbrl
         self.type: int | None = None
 
@@ -170,7 +170,7 @@ class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
 
 class DiscoveringClassLookup(etree.PythonElementClassLookup):
     def __init__(self, modelXbrl: ModelXbrl, baseUrl: str | None, fallback: etree.ElementClassLookup | None = None) -> None:
-        super(DiscoveringClassLookup, self).__init__(fallback)
+        super().__init__(fallback)
         self.modelXbrl = modelXbrl
         self.streamingOrSkipDTS = modelXbrl.skipDTS or getattr(modelXbrl, "isStreamingMode", False)
         self.baseUrl = baseUrl
