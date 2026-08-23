@@ -63,7 +63,7 @@ def generateSkos(dts, skosFile):
 """
          )
         from arelle.ModelObjectFactory import parser
-        parser, parserLookupName, parserLookupClass = parser(dts,None)
+        parser, parserLookupName, parserLookupClass = parser(dts, None)
         from lxml import etree
         xmlDocument = etree.parse(file,parser=parser,base_url=skosFile)
         file.close()

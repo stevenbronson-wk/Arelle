@@ -22,7 +22,7 @@ def generateCHComponent(dts, componentFile):
 """
      )
     from arelle.ModelObjectFactory import parser
-    parser, parserLookupName, parserLookupClass = parser(dts,None)
+    parser, parserLookupName, parserLookupClass = parser(dts, None)
     xmlDocument = etree.parse(file,parser=parser,base_url=componentFile)
     file.close()
     for componentElt in  xmlDocument.iter(tag="Component"):

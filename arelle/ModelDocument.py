@@ -197,8 +197,8 @@ def load(modelXbrl: ModelXbrl, uri: str, base: str | None = None, referringEleme
             if modelDocument is not None:
                 file.close()  # type: ignore[union-attr]
                 return modelDocument
-        _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl,normalizedUri)
-        xmlDocument = etree.parse(file,parser=_parser,base_url=filepath)  # type: ignore[arg-type]
+        _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl, normalizedUri)
+        xmlDocument = etree.parse(file, parser=_parser, base_url=filepath)  # type: ignore[arg-type]
         for error in _parser.error_log:
             modelXbrl.error("xmlSchema:syntax",
                     _("%(error)s, %(fileName)s, line %(line)s, column %(column)s"),
@@ -523,8 +523,8 @@ def create(modelXbrl: ModelXbrl, type: int, uri: str, schemaRefs: list[str] | No
     if Xml:
         import io
         file = io.StringIO(Xml)
-        _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl,normalizedUri)
-        xmlDocument = etree.parse(file,parser=_parser,base_url=filepath)
+        _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl, normalizedUri)
+        xmlDocument = etree.parse(file, parser=_parser, base_url=filepath)
         file.close()
     else:
         xmlDocument = None

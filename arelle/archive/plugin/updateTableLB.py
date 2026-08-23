@@ -58,7 +58,7 @@ http://xbrl.org/2008/filter/dimension http://www.xbrl.org/2008/dimension-filter.
 """
      )
     from arelle.ModelObjectFactory import parser
-    parser, parserLookupName, parserLookupClass = parser(dts,None)
+    parser, parserLookupName, parserLookupClass = parser(dts, None)
     from lxml import etree
     xmlDocument = etree.parse(file,parser=parser,base_url=updatedTableLinkbaseFile)
     file.close()

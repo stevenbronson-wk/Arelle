@@ -44,7 +44,7 @@ ModelFact: Any = None
 def parser(
         modelXbrl: ModelXbrl,
         baseUrl: str | None,
-        target: None = None
+        target: None = None,
 ) -> tuple[etree.XMLParser[etree._Element], KnownNamespacesModelObjectClassLookup, DiscoveringClassLookup]:
     _parser = etree.XMLParser(recover=True, huge_tree=True, target=target,  # type: ignore[call-overload]
                                resolve_entities=False)

@@ -125,7 +125,7 @@ def streamingExtensionsLoader(modelXbrl, mappedUri, filepath):
         _file.close()
         return None
     parsercontext = etree.iterparse(_file, events=("start","end"), huge_tree=True)
-    _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl,filepath)
+    _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl, filepath)
     eltMdlObjs = {}
     beforeInstanceStream = True
     validator = None

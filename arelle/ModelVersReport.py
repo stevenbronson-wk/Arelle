@@ -381,7 +381,7 @@ class ModelVersReport(ModelDocument.ModelDocument):
                 format(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")))
              )
         from arelle.ModelObjectFactory import parser
-        self.parser, self.parserLookupName, self.parserLookupClass = parser(self.modelXbrl,None)
+        self.parser, self.parserLookupName, self.parserLookupClass = parser(self.modelXbrl, None)
         self.xmlDocument = etree.parse(file, parser=self.parser, base_url=self.uri)
         file.close()
         self.xmlDocument.getroot().init(self)  # type: ignore[attr-defined]
