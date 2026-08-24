@@ -80,12 +80,12 @@ def setParserElementClassLookup(
         isRss: bool = False,
 ) -> tuple[etree.XMLParser[etree._Element], etree.CustomElementClassLookup, DiscoveringClassLookup]:
     nsLookup = etree.ElementNamespaceClassLookup()
-    classLookup = DiscoveringClassLookup(modelXbrl, baseUrl)
+    classLookup = DiscoveringClassLookup(modelXbrl, baseUrl, nsLookup=nsLookup)
     nsNameLookup: etree.CustomElementClassLookup
     if isRss:
         nsNameLookup = RssKnownNamespacesModelObjectClassLookup()
     else:
-        nsNameLookup = KnownNamespacesModelObjectClassLookup(modelXbrl, fallback=classLookup)
+        nsNameLookup = KnownNamespacesModelObjectClassLookup(modelXbrl, fallback=classLookup, nsLookup=nsLookup)
         register_namespaces(nsLookup)
     nsLookup.set_fallback(nsNameLookup)
     _parser.set_element_class_lookup(nsLookup)
@@ -159,20 +159,26 @@ def register_namespaces(nsLookup: etree.ElementNamespaceClassLookup) -> None:
 
 
 class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
-    def __init__(self, modelXbrl: ModelXbrl, fallback: etree.ElementClassLookup | None = None) -> None:
+    def __init__(self, modelXbrl: ModelXbrl, nsLookup: etree.ElementNamespaceClassLookup, fallback: etree.ElementClassLookup | None = None) -> None:
         super().__init__(fallback)
         self.modelXbrl = modelXbrl
+        self.nsLookup = nsLookup
 
     def lookup(self, node_type: str, document: object, ns: str | None, ln: str | None) -> type[etree._Element] | None:
         # node_type is "element", "comment", "PI", or "entity"
         if node_type == "element":
             assert ln is not None, "element nodes must have a local name"
+            result: type[ModelObject] | None
             if ln == "testcase" and ns is not None and ns.startswith("http://xbrl.org/"):
-                return ModelObject
+                result = ModelObject
             elif ln == "variation" and ns is not None and ns.startswith("http://xbrl.org/"):
-                return ModelTestcaseVariation
-            # match specific element types or substitution groups for types
-            return self.modelXbrl.matchSubstitutionGroup(qnameNsLocalName(ns, ln), elementSubstitutionModelClass)
+                result = ModelTestcaseVariation
+            else:
+                # match specific element types or substitution groups for types
+                result = self.modelXbrl.matchSubstitutionGroup(qnameNsLocalName(ns, ln), elementSubstitutionModelClass)
+            if result is not None:
+                self.nsLookup.get_namespace(ns)[ln] = result
+            return result
         elif node_type == "comment":
             from arelle.ModelObject import ModelComment
 
@@ -201,9 +207,10 @@ class RssKnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
 
 
 class DiscoveringClassLookup(etree.PythonElementClassLookup):
-    def __init__(self, modelXbrl: ModelXbrl, baseUrl: str | None, fallback: etree.ElementClassLookup | None = None) -> None:
+    def __init__(self, modelXbrl: ModelXbrl, baseUrl: str | None, nsLookup: etree.ElementNamespaceClassLookup, fallback: etree.ElementClassLookup | None = None) -> None:
         super().__init__(fallback)
         self.modelXbrl = modelXbrl
+        self.nsLookup = nsLookup
         self.streamingOrSkipDTS = modelXbrl.skipDTS or getattr(modelXbrl, "isStreamingMode", False)
         self.baseUrl = baseUrl
         self.discoveryAttempts: set[str] = set()
@@ -236,8 +243,9 @@ class DiscoveringClassLookup(etree.PythonElementClassLookup):
             qnameNsLocalName(ns, ln), elementSubstitutionModelClass
         )
 
+        result = ModelObject
         if modelObjectClass is not None:
-            return modelObjectClass
+            result = modelObjectClass
         elif self.streamingOrSkipDTS and ns not in (XbrlConst.xbrli, XbrlConst.link):
             # self.makeelementParentModelObject is set in streamingExtensions.py and ModelXbrl.createFact
             ancestor = proxyElement.getparent() or getattr(self.modelXbrl, "makeelementParentModelObject", None)
@@ -259,4 +267,5 @@ class DiscoveringClassLookup(etree.PythonElementClassLookup):
         elif xlinkType == "resource":
             return ModelResource
 
-        return ModelObject
+        self.nsLookup.get_namespace(ns)[ln] = result
+        return result
