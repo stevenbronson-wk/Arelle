@@ -22,7 +22,7 @@ from arelle.ModelValue import qname, QName
 from arelle.ModelXbrl import ModelXbrl
 from arelle.ModelDtsObject import ModelLink
 from arelle.ModelInstanceObject import ModelFact, ModelContext, ModelUnit, ModelInlineFact
-from arelle.ModelObjectFactory import parser, KnownNamespacesModelObjectClassLookup, DiscoveringClassLookup
+from arelle.ModelObjectFactory import parser, DiscoveringClassLookup
 from arelle.PrototypeDtsObject import LinkPrototype, LocPrototype, ArcPrototype, DocumentPrototype, PrototypeElementTree
 from arelle.PythonUtil import OrderedDefaultDict, isLegacyAbs, normalizeSpace
 from arelle.XhtmlInlineUtil import ixMsgCode
@@ -197,7 +197,7 @@ def load(modelXbrl: ModelXbrl, uri: str, base: str | None = None, referringEleme
             if modelDocument is not None:
                 file.close()  # type: ignore[union-attr]
                 return modelDocument
-        _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl, normalizedUri)
+        _parser, _parserLookupName, _parserLookupClass = parser(modelXbrl, normalizedUri, file=file, filepath=filepath)
         xmlDocument = etree.parse(file, parser=_parser, base_url=filepath)  # type: ignore[arg-type]
         for error in _parser.error_log:
             modelXbrl.error("xmlSchema:syntax",
@@ -659,7 +659,7 @@ class ModelDocument(ModelDocumentBase):
     xmlRootElement: ModelObject
     targetXbrlRootElement: ModelObject
     parser: etree.XMLParser[etree._Element]
-    parserLookupName: KnownNamespacesModelObjectClassLookup
+    parserLookupName: etree.CustomElementClassLookup
     parserLookupClass: DiscoveringClassLookup
     securityClassification: str | None
     fromDTS: ModelXbrl

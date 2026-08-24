@@ -3,6 +3,7 @@ See COPYRIGHT.md for copyright information.
 """
 from __future__ import annotations
 
+from io import BytesIO, StringIO
 from arelle.ModelObject import ModelObject
 from typing import Any, cast, Optional, TYPE_CHECKING, Type
 
@@ -14,6 +15,7 @@ elementSubstitutionModelClass: dict[Optional[QName], Type[ModelObject]] = {}
 
 from lxml import etree
 from arelle import XbrlConst, XmlUtil
+from arelle.FileSource import FileNamedTextIOWrapper
 from arelle.ModelValue import qnameNsLocalName
 from arelle.ModelDtsObject import (
     ModelConcept,
@@ -45,19 +47,44 @@ def parser(
         modelXbrl: ModelXbrl,
         baseUrl: str | None,
         target: None = None,
-) -> tuple[etree.XMLParser[etree._Element], KnownNamespacesModelObjectClassLookup, DiscoveringClassLookup]:
+        file: StringIO | FileNamedTextIOWrapper | None = None,
+        filepath: str | None = None,
+) -> tuple[etree.XMLParser[etree._Element], etree.CustomElementClassLookup, DiscoveringClassLookup]:
     _parser = etree.XMLParser(recover=True, huge_tree=True, target=target,  # type: ignore[call-overload]
                                resolve_entities=False)
-    return setParserElementClassLookup(_parser, modelXbrl, baseUrl)
+    match file:
+        # RSS 2.0 says no namespace.
+        case StringIO():
+            maybeRss = "<rss" in file.getvalue()
+        case FileNamedTextIOWrapper() if isinstance(file.buffer, BytesIO):
+            maybeRss = b"<rss" in file.buffer.getvalue()
+            file.seek(0)
+        case None:
+            maybeRss = False
+        case _:
+            maybeRss = True
+    if maybeRss:
+        rssParser = etree.XMLParser(recover=True, huge_tree=True, resolve_entities=False)
+        assert file is not None
+        isRss = etree.parse(file, parser=rssParser, base_url=filepath).getroot().tag == "rss"
+        file.seek(0)
+    else:
+        isRss = False
+    return setParserElementClassLookup(_parser, modelXbrl, baseUrl, isRss)
 
 
 def setParserElementClassLookup(
         _parser: etree.XMLParser[etree._Element],
         modelXbrl: ModelXbrl,
         baseUrl: str | None = None,
-) -> tuple[etree.XMLParser[etree._Element], KnownNamespacesModelObjectClassLookup, DiscoveringClassLookup]:
+        isRss: bool = False,
+) -> tuple[etree.XMLParser[etree._Element], etree.CustomElementClassLookup, DiscoveringClassLookup]:
     classLookup = DiscoveringClassLookup(modelXbrl, baseUrl)
-    nsNameLookup = KnownNamespacesModelObjectClassLookup(modelXbrl, fallback=classLookup)
+    nsNameLookup: etree.CustomElementClassLookup
+    if isRss:
+        nsNameLookup = RssKnownNamespacesModelObjectClassLookup()
+    else:
+        nsNameLookup = KnownNamespacesModelObjectClassLookup(modelXbrl, fallback=classLookup)
     _parser.set_element_class_lookup(nsNameLookup)
     return _parser, nsNameLookup, classLookup
 
@@ -170,6 +197,21 @@ class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
         elif node_type == "entity":
             return etree.EntityBase
         # returning None delegates to fallback lookup classes
+        return None
+
+
+class RssKnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
+    def lookup(self, node_type: str, document: object, ns: str | None, ln: str | None) -> type[etree._Element] | None:
+        match node_type:
+            case "element":
+                return ModelRssItem if ln == "item" else ModelObject
+            case "comment":
+                from arelle.ModelObject import ModelComment
+                return ModelComment
+            case "PI":
+                return etree.PIBase
+            case "entity":
+                return etree.EntityBase
         return None
 
 
