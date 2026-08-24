@@ -79,13 +79,16 @@ def setParserElementClassLookup(
         baseUrl: str | None = None,
         isRss: bool = False,
 ) -> tuple[etree.XMLParser[etree._Element], etree.CustomElementClassLookup, DiscoveringClassLookup]:
+    nsLookup = etree.ElementNamespaceClassLookup()
     classLookup = DiscoveringClassLookup(modelXbrl, baseUrl)
     nsNameLookup: etree.CustomElementClassLookup
     if isRss:
         nsNameLookup = RssKnownNamespacesModelObjectClassLookup()
     else:
         nsNameLookup = KnownNamespacesModelObjectClassLookup(modelXbrl, fallback=classLookup)
-    _parser.set_element_class_lookup(nsNameLookup)
+        register_namespaces(nsLookup)
+    nsLookup.set_fallback(nsNameLookup)
+    _parser.set_element_class_lookup(nsLookup)
     return _parser, nsNameLookup, classLookup
 
 
@@ -112,6 +115,49 @@ LINK_LOCALNAME_TO_MODEL_CLASS = {
 }
 
 
+def register_namespaces(nsLookup: etree.ElementNamespaceClassLookup) -> None:
+    for qname, modelClass in elementSubstitutionModelClass.items():
+        assert qname is not None
+        nsLookup.get_namespace(qname.namespaceURI)[qname.localName] = modelClass
+
+    xsd = nsLookup.get_namespace(XbrlConst.xsd)
+    xsd["element"] = ModelConcept
+    xsd["attribute"] = ModelAttribute
+    xsd["attributeGroup"] = ModelAttributeGroup
+    xsd["complexType"] = ModelType
+    xsd["simpleType"] = ModelType
+    xsd["group"] = ModelGroupDefinition
+    xsd["sequence"] = ModelSequence
+    xsd["choice"] = ModelChoice
+    xsd["all"] = ModelAll
+    xsd["any"] = ModelAny
+    xsd["anyAttribute"] = ModelAnyAttribute
+    xsd["enumeration"] = ModelEnumeration
+
+    xsd["annotation"] = ModelObject
+    xsd["appinfo"] = ModelObject
+    xsd["documentation"] = ModelObject
+    xsd["import"] = ModelObject
+    xsd["schema"] = ModelObject
+
+    link = nsLookup.get_namespace(XbrlConst.link)
+    for localName, modelClass in LINK_LOCALNAME_TO_MODEL_CLASS.items():
+        link[localName] = modelClass
+
+    edgar = nsLookup.get_namespace("http://edgar/2009/conformance")
+    edgar["variation"] = ModelTestcaseVariation
+    edgar["testcase"] = ModelObject
+    edgar[None] = ModelObject
+
+    no_ns = nsLookup.get_namespace(None)
+    no_ns["testcase"] = ModelObject
+    no_ns["variation"] = ModelTestcaseVariation
+
+    nsLookup.get_namespace("http://www.w3.org/XML/2004/xml-schema-test-suite/")["testGroup"] = ModelTestcaseVariation
+    nsLookup.get_namespace("http://www.w3.org/2005/02/query-test-XQTSCatalog")["test-case"] = ModelTestcaseVariation
+    nsLookup.get_namespace("http://dummy")[None] = etree.ElementBase
+
+
 class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
     def __init__(self, modelXbrl: ModelXbrl, fallback: etree.ElementClassLookup | None = None) -> None:
         super().__init__(fallback)
@@ -121,51 +167,10 @@ class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
         # node_type is "element", "comment", "PI", or "entity"
         if node_type == "element":
             assert ln is not None, "element nodes must have a local name"
-            if ns == XbrlConst.xsd:
-                if ln == "element":
-                    return ModelConcept
-                elif ln == "attribute":
-                    return ModelAttribute
-                elif ln == "attributeGroup":
-                    return ModelAttributeGroup
-                elif ln == "complexType" or ln == "simpleType":
-                    return ModelType
-                elif ln == "group":
-                    return ModelGroupDefinition
-                elif ln == "sequence":
-                    return ModelSequence
-                elif ln == "choice":
-                    return ModelChoice
-                elif ln == "all":
-                    return ModelAll
-                elif ln == "any":
-                    return ModelAny
-                elif ln == "anyAttribute":
-                    return ModelAnyAttribute
-                elif ln == "enumeration":
-                    return ModelEnumeration
-            elif ns == XbrlConst.link:
-                if modelObjectClass := LINK_LOCALNAME_TO_MODEL_CLASS.get(ln):
-                    return modelObjectClass
-            elif ns == "http://edgar/2009/conformance":
-                # don't force loading of test schema
-                if ln == "variation":
-                    return ModelTestcaseVariation
-                else:
-                    return ModelObject
-            elif ln == "testcase" and (
-                ns is None or ns in ("http://edgar/2009/conformance",) or ns.startswith("http://xbrl.org/")):
+            if ln == "testcase" and ns is not None and ns.startswith("http://xbrl.org/"):
                 return ModelObject
-            elif ln == "variation" and (
-                ns is None or ns in ("http://edgar/2009/conformance",) or ns.startswith("http://xbrl.org/")):
+            elif ln == "variation" and ns is not None and ns.startswith("http://xbrl.org/"):
                 return ModelTestcaseVariation
-            elif ln == "testGroup" and ns == "http://www.w3.org/XML/2004/xml-schema-test-suite/":
-                return ModelTestcaseVariation
-            elif ln == "test-case" and ns == "http://www.w3.org/2005/02/query-test-XQTSCatalog":
-                return ModelTestcaseVariation
-            elif ns == "http://dummy":
-                return etree.ElementBase
-
             # match specific element types or substitution groups for types
             return self.modelXbrl.matchSubstitutionGroup(qnameNsLocalName(ns, ln), elementSubstitutionModelClass)
         elif node_type == "comment":
