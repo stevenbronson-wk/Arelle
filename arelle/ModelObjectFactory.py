@@ -73,6 +73,11 @@ LINK_LOCALNAME_TO_MODEL_CLASS = {
     "reference": ModelResource,
     "roleType": ModelRoleType,
     "arcroleType": ModelRoleType,
+
+    "arcroleRef": ModelObject,
+    "roleRef": ModelObject,
+    "linkbaseRef": ModelObject,
+    "linkbase": ModelObject,
 } | {
     q.localName: ModelObject
     for q in [
