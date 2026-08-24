@@ -89,11 +89,6 @@ def setParserElementClassLookup(
     return _parser, nsNameLookup, classLookup
 
 
-SCHEMA = 1
-LINKBASE = 2
-VERSIONINGREPORT = 3
-RSSFEED = 4
-
 LINK_LOCALNAME_TO_MODEL_CLASS = {
     "loc": ModelLocator,
     "label": ModelResource,
@@ -121,15 +116,12 @@ class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
     def __init__(self, modelXbrl: ModelXbrl, fallback: etree.ElementClassLookup | None = None) -> None:
         super().__init__(fallback)
         self.modelXbrl = modelXbrl
-        self.type: int | None = None
 
     def lookup(self, node_type: str, document: object, ns: str | None, ln: str | None) -> type[etree._Element] | None:
         # node_type is "element", "comment", "PI", or "entity"
         if node_type == "element":
             assert ln is not None, "element nodes must have a local name"
             if ns == XbrlConst.xsd:
-                if self.type is None:
-                    self.type = SCHEMA
                 if ln == "element":
                     return ModelConcept
                 elif ln == "attribute":
@@ -153,8 +145,6 @@ class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
                 elif ln == "enumeration":
                     return ModelEnumeration
             elif ns == XbrlConst.link:
-                if self.type is None:
-                    self.type = LINKBASE
                 if modelObjectClass := LINK_LOCALNAME_TO_MODEL_CLASS.get(ln):
                     return modelObjectClass
             elif ns == "http://edgar/2009/conformance":
@@ -173,18 +163,8 @@ class KnownNamespacesModelObjectClassLookup(etree.CustomElementClassLookup):
                 return ModelTestcaseVariation
             elif ln == "test-case" and ns == "http://www.w3.org/2005/02/query-test-XQTSCatalog":
                 return ModelTestcaseVariation
-            elif ns == XbrlConst.ver:
-                if self.type is None:
-                    self.type = VERSIONINGREPORT
             elif ns == "http://dummy":
                 return etree.ElementBase
-            if self.type is None and ln == "rss":
-                self.type = RSSFEED
-            elif self.type == RSSFEED:
-                if ln == "item":
-                    return ModelRssItem
-                else:
-                    return ModelObject
 
             # match specific element types or substitution groups for types
             return self.modelXbrl.matchSubstitutionGroup(qnameNsLocalName(ns, ln), elementSubstitutionModelClass)
